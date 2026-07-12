@@ -1,0 +1,13 @@
+.image-preview {
+    max-width: 220px;
+    max-height: 220px;
+    display: block;
+    margin: 10px 0;
+    border-radius: 8px;
+    object-fit: contain;
+}
+
+.image-preview-container {
+    margin-top: 8px;
+    margin-bottom: 8px;
+}

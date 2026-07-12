@@ -1,24 +1,11 @@
-// =======================
 // Supabase Setup
-// =======================
-
 const SUPABASE_URL = "https://hcipkkfyopuslgtzmifa.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_6qyKoD86F29kvGivX7QzRg_5hPgX9xD";
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-
-// =======================
 // Global State
-// =======================
-
 let currentReceiveSessionCode = "";
-
-
-// =======================
 // Page Elements
-// =======================
-
 const homePage = document.getElementById("homePage");
 const sendPage = document.getElementById("sendPage");
 const receivePage = document.getElementById("receivePage");
@@ -34,20 +21,15 @@ const enterCodeBtn = document.getElementById("enterCodeBtn");
 const myTransfersBtn = document.getElementById("myTransfersBtn");
 
 
-// =======================
 // Send Page Elements
-// =======================
-
 const sendFileInput = document.getElementById("sendFileInput");
 const uploadAndCreateLinkBtn = document.getElementById("uploadAndCreateLinkBtn");
 const sendCode = document.getElementById("sendCode");
 const sendStatus = document.getElementById("sendStatus");
 
 
-// =======================
-// Receive Page Elements
-// =======================
 
+// Receive Page Elements
 const createReceiveSessionBtn = document.getElementById("createReceiveSessionBtn");
 const receiveCode = document.getElementById("receiveCode");
 const receiveQRCode = document.getElementById("receiveQRCode");
@@ -59,37 +41,29 @@ const receiveFileSizeDisplay = document.getElementById("receiveFileSizeDisplay")
 const receiveDownloadBtn = document.getElementById("receiveDownloadBtn");
 
 
-// =======================
-// Upload To Receiver Elements
-// =======================
 
+// Upload To Receiver Elements
 const uploadSessionCodeInput = document.getElementById("uploadSessionCodeInput");
 const uploadFileInput = document.getElementById("uploadFileInput");
 const uploadToSessionBtn = document.getElementById("uploadToSessionBtn");
 const uploadStatus = document.getElementById("uploadStatus");
 
 
-// =======================
-// Code Page Elements
-// =======================
 
+// Code Page Elements
 const codeInput = document.getElementById("codeInput");
 const getFileBtn = document.getElementById("getFileBtn");
 const codeStatus = document.getElementById("codeStatus");
 
 
-// =======================
-// My Transfers Elements
-// =======================
 
+// My Transfers Elements
 const refreshMyTransfersBtn = document.getElementById("refreshMyTransfersBtn");
 const myTransfersList = document.getElementById("myTransfersList");
 
 
-// =======================
-// Page Switching
-// =======================
 
+// Page Switching
 function hideAllPages() {
     homePage.style.display = "none";
     sendPage.style.display = "none";
@@ -130,12 +104,7 @@ function showMyTransfersPage() {
     myTransfersPage.style.display = "block";
     loadMyTransfers();
 }
-
-
-// =======================
 // Button Events
-// =======================
-
 sendBtn.addEventListener("click", showSendPage);
 receiveBtn.addEventListener("click", showReceivePage);
 uploadToReceiverBtn.addEventListener("click", showUploadPage);
@@ -150,11 +119,7 @@ backHomeBtns.forEach(function (button) {
 
 refreshMyTransfersBtn.addEventListener("click", loadMyTransfers);
 
-
-// =======================
 // Helper Functions
-// =======================
-
 function generateTransferCode() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -187,6 +152,18 @@ function saveTransferCodeToLocalStorage(code) {
     localStorage.setItem("myTransferCodes", JSON.stringify(codes));
 }
 
+function isImageFile(fileName) {
+    const lowerName = fileName.toLowerCase();
+
+    return (
+        lowerName.endsWith(".png") ||
+        lowerName.endsWith(".jpg") ||
+        lowerName.endsWith(".jpeg") ||
+        lowerName.endsWith(".gif") ||
+        lowerName.endsWith(".webp")
+    );
+}
+
 async function downloadFileFromSignedUrl(signedUrl, fileName, statusElement) {
     const response = await fetch(signedUrl);
 
@@ -209,11 +186,35 @@ async function downloadFileFromSignedUrl(signedUrl, fileName, statusElement) {
     URL.revokeObjectURL(objectUrl);
 }
 
+async function showImagePreview(file, previewElementId) {
+    const previewElement = document.getElementById(previewElementId);
 
-// =======================
+    if (!previewElement) {
+        return;
+    }
+
+    previewElement.textContent = "Loading preview...";
+
+    const signedUrlResult = await supabaseClient
+        .storage
+        .from("transfer-files")
+        .createSignedUrl(file.file_path, 60);
+
+    if (signedUrlResult.error) {
+        previewElement.textContent = "Preview unavailable.";
+        return;
+    }
+
+    previewElement.innerHTML = `
+        <img
+            src="${signedUrlResult.data.signedUrl}"
+            alt="${file.file_name}"
+            class="image-preview"
+        >
+    `;
+}
+
 // Send-First Upload
-// =======================
-
 uploadAndCreateLinkBtn.addEventListener("click", async function () {
     const file = sendFileInput.files[0];
 
@@ -272,11 +273,7 @@ uploadAndCreateLinkBtn.addEventListener("click", async function () {
         formatFileSize(file.size);
 });
 
-
-// =======================
 // Receive Session Creation + QR
-// =======================
-
 createReceiveSessionBtn.addEventListener("click", createReceiveSession);
 
 async function createReceiveSession() {
@@ -328,11 +325,7 @@ async function createReceiveSession() {
     checkReceiveSessionBtn.style.display = "block";
 }
 
-
-// =======================
 // Upload Multiple Files to Receiver Session
-// =======================
-
 uploadToSessionBtn.addEventListener("click", uploadToReceiverSession);
 
 async function uploadToReceiverSession() {
@@ -449,10 +442,7 @@ async function uploadToReceiverSession() {
 }
 
 
-// =======================
-// Check Receive Session For Multiple Files
-// =======================
-
+// Check Receive Session For Multiple Files + Image Preview
 checkReceiveSessionBtn.addEventListener("click", checkReceiveSession);
 
 async function checkReceiveSession() {
@@ -514,6 +504,12 @@ async function checkReceiveSession() {
         fileCard.innerHTML = `
             <p><strong>${file.file_name}</strong></p>
             <p>Size: ${formatFileSize(file.file_size)}</p>
+
+            <div
+                class="image-preview-container"
+                id="preview-${file.id}"
+            ></div>
+
             <button
                 class="downloadSessionFileBtn"
                 data-path="${file.file_path}"
@@ -524,6 +520,10 @@ async function checkReceiveSession() {
         `;
 
         receiveDownloadSection.appendChild(fileCard);
+
+        if (isImageFile(file.file_name)) {
+            showImagePreview(file, "preview-" + file.id);
+        }
     });
 
     receiveDownloadSection.style.display = "block";
@@ -559,10 +559,7 @@ async function checkReceiveSession() {
 }
 
 
-// =======================
 // Old Single Download Button Fallback
-// =======================
-
 if (receiveDownloadBtn) {
     receiveDownloadBtn.addEventListener("click", function () {
         receiveStatus.textContent =
@@ -570,11 +567,7 @@ if (receiveDownloadBtn) {
     });
 }
 
-
-// =======================
 // Download File by Code
-// =======================
-
 getFileBtn.addEventListener("click", async function () {
     const enteredCode = codeInput.value.trim();
 
@@ -634,10 +627,8 @@ getFileBtn.addEventListener("click", async function () {
 });
 
 
-// =======================
-// My Transfers
-// =======================
 
+// My Transfers
 async function loadMyTransfers() {
     myTransfersList.textContent = "Loading...";
 
@@ -717,11 +708,7 @@ async function loadMyTransfers() {
     });
 }
 
-
-// =======================
 // Handle QR URL
-// =======================
-
 function handleUploadCodeFromUrl() {
     const params = new URLSearchParams(window.location.search);
     const uploadCode = params.get("upload");
