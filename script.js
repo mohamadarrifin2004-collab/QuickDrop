@@ -1,24 +1,15 @@
-// =======================
 // Supabase Setup
-// =======================
-
 const SUPABASE_URL = "https://hcipkkfyopuslgtzmifa.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_6qyKoD86F29kvGivX7QzRg_5hPgX9xD";
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-
-// =======================
 // Global State
-// =======================
-
 let currentReceiveSessionCode = "";
+let currentReceiveSessionExpiry = null;
+let expiryInterval = null;
 
-
-// =======================
 // Page Elements
-// =======================
-
 const homePage = document.getElementById("homePage");
 const receivePage = document.getElementById("receivePage");
 const uploadPage = document.getElementById("uploadPage");
@@ -26,33 +17,22 @@ const uploadPage = document.getElementById("uploadPage");
 const receiveBtn = document.getElementById("receiveBtn");
 const uploadToReceiverBtn = document.getElementById("uploadToReceiverBtn");
 
-
-// =======================
 // Receive Page Elements
-// =======================
-
 const createReceiveSessionBtn = document.getElementById("createReceiveSessionBtn");
 const receiveCode = document.getElementById("receiveCode");
+const receiveExpiryDisplay = document.getElementById("receiveExpiryDisplay");
 const receiveQRCode = document.getElementById("receiveQRCode");
 const receiveStatus = document.getElementById("receiveStatus");
 const checkReceiveSessionBtn = document.getElementById("checkReceiveSessionBtn");
 const receiveDownloadSection = document.getElementById("receiveDownloadSection");
 
-
-// =======================
 // Upload Page Elements
-// =======================
-
 const uploadSessionCodeInput = document.getElementById("uploadSessionCodeInput");
 const uploadFileInput = document.getElementById("uploadFileInput");
 const uploadToSessionBtn = document.getElementById("uploadToSessionBtn");
 const uploadStatus = document.getElementById("uploadStatus");
 
-
-// =======================
 // Page Switching
-// =======================
-
 function hideAllPages() {
     homePage.style.display = "none";
     receivePage.style.display = "none";
@@ -74,11 +54,7 @@ function showUploadPage() {
     uploadPage.style.display = "block";
 }
 
-
-// =======================
 // Button Events
-// =======================
-
 receiveBtn.addEventListener("click", showReceivePage);
 uploadToReceiverBtn.addEventListener("click", showUploadPage);
 
@@ -88,11 +64,7 @@ backHomeBtns.forEach(function (button) {
     button.addEventListener("click", showHomePage);
 });
 
-
-// =======================
 // Helper Functions
-// =======================
-
 function generateTransferCode() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -119,6 +91,44 @@ function isImageFile(fileName) {
         lowerName.endsWith(".gif") ||
         lowerName.endsWith(".webp")
     );
+}
+
+function formatTimeLeft(expiryDate) {
+    const now = new Date();
+    const timeLeftMs = expiryDate - now;
+
+    if (timeLeftMs <= 0) {
+        return "Expired";
+    }
+
+    const hours = Math.floor(timeLeftMs / (1000 * 60 * 60));
+    const minutes = Math.floor((timeLeftMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    return hours + "h " + minutes + "m left";
+}
+
+function startExpiryCountdown(expiryDate) {
+    currentReceiveSessionExpiry = expiryDate;
+
+    if (expiryInterval !== null) {
+        clearInterval(expiryInterval);
+    }
+
+    receiveExpiryDisplay.textContent =
+        "Session expires in: " + formatTimeLeft(expiryDate);
+
+    expiryInterval = setInterval(function () {
+        const timeLeftText = formatTimeLeft(expiryDate);
+
+        receiveExpiryDisplay.textContent =
+            "Session expires in: " + timeLeftText;
+
+        if (timeLeftText === "Expired") {
+            clearInterval(expiryInterval);
+            receiveStatus.textContent = "This receive session has expired.";
+            checkReceiveSessionBtn.style.display = "none";
+        }
+    }, 60000);
 }
 
 async function downloadFileFromSignedUrl(signedUrl, fileName, statusElement) {
@@ -170,21 +180,21 @@ async function showImagePreview(file, previewElementId) {
         >
     `;
 }
-
-
-// =======================
-// Create Receive Session + QR
-// =======================
-
+// Create Receive Session + QR + Expiry
 createReceiveSessionBtn.addEventListener("click", createReceiveSession);
 
 async function createReceiveSession() {
     receiveStatus.textContent = "Creating receive session...";
     receiveCode.textContent = "";
+    receiveExpiryDisplay.textContent = "";
     receiveQRCode.innerHTML = "";
     receiveDownloadSection.innerHTML = "";
     receiveDownloadSection.style.display = "none";
     checkReceiveSessionBtn.style.display = "none";
+
+    if (expiryInterval !== null) {
+        clearInterval(expiryInterval);
+    }
 
     const receiveSessionCode = generateTransferCode();
 
@@ -209,6 +219,8 @@ async function createReceiveSession() {
 
     receiveCode.textContent = receiveSessionCode;
 
+    startExpiryCountdown(expiresAt);
+
     const uploadUrl =
         window.location.origin +
         window.location.pathname +
@@ -227,11 +239,7 @@ async function createReceiveSession() {
     checkReceiveSessionBtn.style.display = "block";
 }
 
-
-// =======================
 // Upload Multiple Files to Receiver Session
-// =======================
-
 uploadToSessionBtn.addEventListener("click", uploadToReceiverSession);
 
 async function uploadToReceiverSession() {
@@ -347,11 +355,7 @@ async function uploadToReceiverSession() {
         "Upload complete. Receiver can now download " + files.length + " file(s).";
 }
 
-
-// =======================
 // Check Receive Session
-// =======================
-
 checkReceiveSessionBtn.addEventListener("click", checkReceiveSession);
 
 async function checkReceiveSession() {
@@ -468,10 +472,8 @@ async function checkReceiveSession() {
 }
 
 
-// =======================
-// Handle QR URL
-// =======================
 
+// Handle QR URL
 function handleUploadCodeFromUrl() {
     const params = new URLSearchParams(window.location.search);
     const uploadCode = params.get("upload");
