@@ -1,87 +1,67 @@
+// =======================
 // Supabase Setup
+// =======================
+
 const SUPABASE_URL = "https://hcipkkfyopuslgtzmifa.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_6qyKoD86F29kvGivX7QzRg_5hPgX9xD";
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+
+// =======================
 // Global State
+// =======================
+
 let currentReceiveSessionCode = "";
+
+
+// =======================
 // Page Elements
+// =======================
+
 const homePage = document.getElementById("homePage");
-const sendPage = document.getElementById("sendPage");
 const receivePage = document.getElementById("receivePage");
 const uploadPage = document.getElementById("uploadPage");
-const codePage = document.getElementById("codePage");
-const myTransfersPage = document.getElementById("myTransfersPage");
-const directDownloadPage = document.getElementById("directDownloadPage");
 
-const sendBtn = document.getElementById("sendBtn");
 const receiveBtn = document.getElementById("receiveBtn");
 const uploadToReceiverBtn = document.getElementById("uploadToReceiverBtn");
-const enterCodeBtn = document.getElementById("enterCodeBtn");
-const myTransfersBtn = document.getElementById("myTransfersBtn");
 
 
-// Send Page Elements
-const sendFileInput = document.getElementById("sendFileInput");
-const uploadAndCreateLinkBtn = document.getElementById("uploadAndCreateLinkBtn");
-const sendCode = document.getElementById("sendCode");
-const sendStatus = document.getElementById("sendStatus");
-
-
-
+// =======================
 // Receive Page Elements
+// =======================
+
 const createReceiveSessionBtn = document.getElementById("createReceiveSessionBtn");
 const receiveCode = document.getElementById("receiveCode");
 const receiveQRCode = document.getElementById("receiveQRCode");
 const receiveStatus = document.getElementById("receiveStatus");
 const checkReceiveSessionBtn = document.getElementById("checkReceiveSessionBtn");
 const receiveDownloadSection = document.getElementById("receiveDownloadSection");
-const receiveFileNameDisplay = document.getElementById("receiveFileNameDisplay");
-const receiveFileSizeDisplay = document.getElementById("receiveFileSizeDisplay");
-const receiveDownloadBtn = document.getElementById("receiveDownloadBtn");
 
 
+// =======================
+// Upload Page Elements
+// =======================
 
-// Upload To Receiver Elements
 const uploadSessionCodeInput = document.getElementById("uploadSessionCodeInput");
 const uploadFileInput = document.getElementById("uploadFileInput");
 const uploadToSessionBtn = document.getElementById("uploadToSessionBtn");
 const uploadStatus = document.getElementById("uploadStatus");
 
 
-
-// Code Page Elements
-const codeInput = document.getElementById("codeInput");
-const getFileBtn = document.getElementById("getFileBtn");
-const codeStatus = document.getElementById("codeStatus");
-
-
-
-// My Transfers Elements
-const refreshMyTransfersBtn = document.getElementById("refreshMyTransfersBtn");
-const myTransfersList = document.getElementById("myTransfersList");
-
-
-
+// =======================
 // Page Switching
+// =======================
+
 function hideAllPages() {
     homePage.style.display = "none";
-    sendPage.style.display = "none";
     receivePage.style.display = "none";
     uploadPage.style.display = "none";
-    codePage.style.display = "none";
-    myTransfersPage.style.display = "none";
-    directDownloadPage.style.display = "none";
 }
 
 function showHomePage() {
     hideAllPages();
     homePage.style.display = "block";
-}
-
-function showSendPage() {
-    hideAllPages();
-    sendPage.style.display = "block";
 }
 
 function showReceivePage() {
@@ -94,22 +74,13 @@ function showUploadPage() {
     uploadPage.style.display = "block";
 }
 
-function showCodePage() {
-    hideAllPages();
-    codePage.style.display = "block";
-}
 
-function showMyTransfersPage() {
-    hideAllPages();
-    myTransfersPage.style.display = "block";
-    loadMyTransfers();
-}
+// =======================
 // Button Events
-sendBtn.addEventListener("click", showSendPage);
+// =======================
+
 receiveBtn.addEventListener("click", showReceivePage);
 uploadToReceiverBtn.addEventListener("click", showUploadPage);
-enterCodeBtn.addEventListener("click", showCodePage);
-myTransfersBtn.addEventListener("click", showMyTransfersPage);
 
 const backHomeBtns = document.querySelectorAll(".backHomeBtn");
 
@@ -117,9 +88,11 @@ backHomeBtns.forEach(function (button) {
     button.addEventListener("click", showHomePage);
 });
 
-refreshMyTransfersBtn.addEventListener("click", loadMyTransfers);
 
+// =======================
 // Helper Functions
+// =======================
+
 function generateTransferCode() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -134,22 +107,6 @@ function formatFileSize(bytes) {
     }
 
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-}
-
-function saveTransferCodeToLocalStorage(code) {
-    const savedCodes = localStorage.getItem("myTransferCodes");
-
-    let codes = [];
-
-    if (savedCodes !== null) {
-        codes = JSON.parse(savedCodes);
-    }
-
-    if (!codes.includes(code)) {
-        codes.push(code);
-    }
-
-    localStorage.setItem("myTransferCodes", JSON.stringify(codes));
 }
 
 function isImageFile(fileName) {
@@ -214,66 +171,11 @@ async function showImagePreview(file, previewElementId) {
     `;
 }
 
-// Send-First Upload
-uploadAndCreateLinkBtn.addEventListener("click", async function () {
-    const file = sendFileInput.files[0];
 
-    if (!file) {
-        sendStatus.textContent = "Please choose a file first.";
-        return;
-    }
+// =======================
+// Create Receive Session + QR
+// =======================
 
-    const maxFileSize = 50 * 1024 * 1024;
-
-    if (file.size > maxFileSize) {
-        sendStatus.textContent = "File too large. Maximum size is 50 MB.";
-        return;
-    }
-
-    sendCode.textContent = "";
-    sendStatus.textContent = "Uploading...";
-
-    const transferCode = generateTransferCode();
-    const filePath = "uploads/" + transferCode + "/" + file.name;
-
-    const uploadResult = await supabaseClient
-        .storage
-        .from("transfer-files")
-        .upload(filePath, file);
-
-    if (uploadResult.error) {
-        sendStatus.textContent = "Upload failed: " + uploadResult.error.message;
-        return;
-    }
-
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24);
-
-    const insertResult = await supabaseClient
-        .from("transfer_files")
-        .insert({
-            code: transferCode,
-            file_name: file.name,
-            file_path: filePath,
-            file_size: file.size,
-            expires_at: expiresAt.toISOString()
-        });
-
-    if (insertResult.error) {
-        sendStatus.textContent = "Database save failed: " + insertResult.error.message;
-        return;
-    }
-
-    sendCode.textContent = transferCode;
-
-    saveTransferCodeToLocalStorage(transferCode);
-
-    sendStatus.textContent =
-        "Upload complete. Use this code on the other device. File size: " +
-        formatFileSize(file.size);
-});
-
-// Receive Session Creation + QR
 createReceiveSessionBtn.addEventListener("click", createReceiveSession);
 
 async function createReceiveSession() {
@@ -325,7 +227,11 @@ async function createReceiveSession() {
     checkReceiveSessionBtn.style.display = "block";
 }
 
+
+// =======================
 // Upload Multiple Files to Receiver Session
+// =======================
+
 uploadToSessionBtn.addEventListener("click", uploadToReceiverSession);
 
 async function uploadToReceiverSession() {
@@ -442,7 +348,10 @@ async function uploadToReceiverSession() {
 }
 
 
-// Check Receive Session For Multiple Files + Image Preview
+// =======================
+// Check Receive Session
+// =======================
+
 checkReceiveSessionBtn.addEventListener("click", checkReceiveSession);
 
 async function checkReceiveSession() {
@@ -559,156 +468,10 @@ async function checkReceiveSession() {
 }
 
 
-// Old Single Download Button Fallback
-if (receiveDownloadBtn) {
-    receiveDownloadBtn.addEventListener("click", function () {
-        receiveStatus.textContent =
-            "Use the individual Download buttons shown under each file.";
-    });
-}
-
-// Download File by Code
-getFileBtn.addEventListener("click", async function () {
-    const enteredCode = codeInput.value.trim();
-
-    if (enteredCode === "") {
-        codeStatus.textContent = "Please enter a transfer code.";
-        return;
-    }
-
-    codeStatus.textContent = "Searching...";
-
-    const result = await supabaseClient
-        .from("transfer_files")
-        .select("*")
-        .eq("code", enteredCode)
-        .single();
-
-    if (result.error) {
-        codeStatus.textContent = "No file found for this code.";
-        return;
-    }
-
-    const fileData = result.data;
-
-    const now = new Date();
-    const expiresAt = new Date(fileData.expires_at);
-
-    if (now > expiresAt) {
-        codeStatus.textContent = "This transfer has expired.";
-        return;
-    }
-
-    const signedUrlResult = await supabaseClient
-        .storage
-        .from("transfer-files")
-        .createSignedUrl(fileData.file_path, 60);
-
-    if (signedUrlResult.error) {
-        codeStatus.textContent = "Could not create download link.";
-        return;
-    }
-
-    codeStatus.innerHTML = `
-        <p>File found: ${fileData.file_name}</p>
-        <p>Size: ${formatFileSize(fileData.file_size)}</p>
-        <button id="downloadFoundFileBtn">Download File</button>
-    `;
-
-    const downloadFoundFileBtn = document.getElementById("downloadFoundFileBtn");
-
-    downloadFoundFileBtn.addEventListener("click", async function () {
-        await downloadFileFromSignedUrl(
-            signedUrlResult.data.signedUrl,
-            fileData.file_name,
-            codeStatus
-        );
-    });
-});
-
-
-
-// My Transfers
-async function loadMyTransfers() {
-    myTransfersList.textContent = "Loading...";
-
-    const savedCodes = localStorage.getItem("myTransferCodes");
-
-    if (savedCodes === null) {
-        myTransfersList.textContent = "No transfers created from this browser.";
-        return;
-    }
-
-    const codes = JSON.parse(savedCodes);
-
-    if (codes.length === 0) {
-        myTransfersList.textContent = "No transfers created from this browser.";
-        return;
-    }
-
-    const result = await supabaseClient
-        .from("transfer_files")
-        .select("*")
-        .in("code", codes)
-        .order("created_at", { ascending: false });
-
-    if (result.error) {
-        myTransfersList.textContent =
-            "Could not load transfers: " + result.error.message;
-        return;
-    }
-
-    const now = new Date();
-
-    const activeTransfers = result.data.filter(function (file) {
-        return new Date(file.expires_at) > now;
-    });
-
-    if (activeTransfers.length === 0) {
-        myTransfersList.textContent = "No active transfers left.";
-        return;
-    }
-
-    myTransfersList.innerHTML = "";
-
-    activeTransfers.forEach(function (file) {
-        const expiresAt = new Date(file.expires_at);
-        const timeLeftMs = expiresAt - now;
-
-        const hoursLeft = Math.floor(timeLeftMs / (1000 * 60 * 60));
-        const minutesLeft = Math.floor(
-            (timeLeftMs % (1000 * 60 * 60)) / (1000 * 60)
-        );
-
-        const fileCard = document.createElement("div");
-        fileCard.className = "file-card";
-
-        fileCard.innerHTML = `
-            <p><strong>${file.file_name}</strong></p>
-            <p>Code: ${file.code}</p>
-            <p>Size: ${formatFileSize(file.file_size)}</p>
-            <p>Time left: ${hoursLeft}h ${minutesLeft}m</p>
-            <button class="useTransferCodeBtn" data-code="${file.code}">
-                Use this code
-            </button>
-        `;
-
-        myTransfersList.appendChild(fileCard);
-    });
-
-    const useTransferCodeBtns = document.querySelectorAll(".useTransferCodeBtn");
-
-    useTransferCodeBtns.forEach(function (button) {
-        button.addEventListener("click", function () {
-            const code = button.dataset.code;
-
-            codeInput.value = code;
-            showCodePage();
-        });
-    });
-}
-
+// =======================
 // Handle QR URL
+// =======================
+
 function handleUploadCodeFromUrl() {
     const params = new URLSearchParams(window.location.search);
     const uploadCode = params.get("upload");
