@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drop Code</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Home Page -->
+    <section id="homePage">
+        <h1>Drop Code</h1>
+        <p>Temporary QR-based file transfer between devices</p>
+
+        <button id="sendBtn">Send a file</button>
+        <button id="receiveBtn">Receive a file</button>
+        <button id="uploadToReceiverBtn">Upload to receiver</button>
+        <button id="enterCodeBtn">Enter transfer code</button>
+        <button id="myTransfersBtn">My Transfers</button>
+    </section>
+
+
+    <!-- Send Page -->
+    <section id="sendPage" style="display: none;">
+        <h2>Send a file</h2>
+
+        <input type="file" id="sendFileInput">
+
+        <button id="uploadAndCreateLinkBtn">
+            Upload and Create Link
+        </button>
+
+        <p>Transfer code:</p>
+        <strong id="sendCode"></strong>
+
+        <p id="sendStatus">Status appears here</p>
+
+        <button class="backHomeBtn">Back Home</button>
+    </section>
+
+
+    <!-- Receive Page -->
+    <section id="receivePage" style="display: none;">
+        <h2>Receive a file</h2>
+
+        <button id="createReceiveSessionBtn">
+            Create Receive Session
+        </button>
+
+        <p>Session code:</p>
+        <strong id="receiveCode"></strong>
+
+        <div id="receiveQRCode"></div>
+
+        <p id="receiveStatus"></p>
+
+        <button id="checkReceiveSessionBtn" style="display: none;">
+            Check for File
+        </button>
+
+        <div id="receiveDownloadSection" style="display: none;">
+            <p id="receiveFileNameDisplay"></p>
+            <p id="receiveFileSizeDisplay"></p>
+
+            <button id="receiveDownloadBtn">
+                Download File
+            </button>
+        </div>
+
+        <button class="backHomeBtn">Back Home</button>
+    </section>
+
+
+    <!-- Upload To Receiver Page -->
+    <section id="uploadPage" style="display: none;">
+        <h2>Upload to receiver</h2>
+
+        <p>Enter receiver's session code:</p>
+        <input id="uploadSessionCodeInput" placeholder="Receiver code">
+
+        <input type="file" id="uploadFileInput">
+
+        <button id="uploadToSessionBtn">
+            Upload to Receiver
+        </button>
+
+        <p id="uploadStatus"></p>
+
+        <button class="backHomeBtn">Back Home</button>
+    </section>
+
+
+    <!-- Enter Code Page -->
+    <section id="codePage" style="display: none;">
+        <h2>Enter transfer code</h2>
+
+        <input id="codeInput" placeholder="Enter code">
+
+        <button id="getFileBtn">
+            Get File
+        </button>
+
+        <p id="codeStatus"></p>
+
+        <button class="backHomeBtn">Back Home</button>
+    </section>
+
+
+    <!-- My Transfers Page -->
+    <section id="myTransfersPage" style="display: none;">
+        <h2>My Transfers</h2>
+
+        <p>Files created from this browser that are still available.</p>
+
+        <button id="refreshMyTransfersBtn">
+            Refresh
+        </button>
+
+        <div id="myTransfersList"></div>
+
+        <button class="backHomeBtn">Back Home</button>
+    </section>
+
+
+    <!-- Direct Download Page -->
+    <section id="directDownloadPage" style="display: none;">
+        <h2>Download file</h2>
+
+        <p id="directFileNameDisplay"></p>
+
+        <button id="directDownloadBtn">
+            Download File
+        </button>
+
+        <p id="directDownloadStatus"></p>
+
+        <button class="backHomeBtn">Back Home</button>
+    </section>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
