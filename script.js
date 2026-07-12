@@ -13,7 +13,6 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // =======================
 
 let currentReceiveSessionCode = "";
-let currentReceiveFileData = null;
 
 
 // =======================
@@ -284,9 +283,9 @@ async function createReceiveSession() {
     receiveStatus.textContent = "Creating receive session...";
     receiveCode.textContent = "";
     receiveQRCode.innerHTML = "";
-    checkReceiveSessionBtn.style.display = "none";
+    receiveDownloadSection.innerHTML = "";
     receiveDownloadSection.style.display = "none";
-    currentReceiveFileData = null;
+    checkReceiveSessionBtn.style.display = "none";
 
     const receiveSessionCode = generateTransferCode();
 
@@ -324,37 +323,40 @@ async function createReceiveSession() {
     });
 
     receiveStatus.textContent =
-        "Waiting for sender to upload a file. Scan the QR code or enter the code manually.";
+        "Waiting for sender to upload file(s). Scan the QR code or enter the code manually.";
 
     checkReceiveSessionBtn.style.display = "block";
 }
 
 
 // =======================
-// Upload to Receiver Session
+// Upload Multiple Files to Receiver Session
 // =======================
 
 uploadToSessionBtn.addEventListener("click", uploadToReceiverSession);
 
 async function uploadToReceiverSession() {
     const receiverCode = uploadSessionCodeInput.value.trim();
-    const file = uploadFileInput.files[0];
+    const files = uploadFileInput.files;
 
     if (receiverCode === "") {
         uploadStatus.textContent = "Please enter the receiver's session code.";
         return;
     }
 
-    if (!file) {
-        uploadStatus.textContent = "Please choose a file first.";
+    if (files.length === 0) {
+        uploadStatus.textContent = "Please choose at least one file.";
         return;
     }
 
     const maxFileSize = 50 * 1024 * 1024;
 
-    if (file.size > maxFileSize) {
-        uploadStatus.textContent = "File too large. Maximum size is 50 MB.";
-        return;
+    for (let i = 0; i < files.length; i++) {
+        if (files[i].size > maxFileSize) {
+            uploadStatus.textContent =
+                files[i].name + " is too large. Maximum size is 50 MB.";
+            return;
+        }
     }
 
     uploadStatus.textContent = "Checking receiver session...";
@@ -380,49 +382,75 @@ async function uploadToReceiverSession() {
         return;
     }
 
-    if (session.status !== "waiting") {
-        uploadStatus.textContent = "This receive session already has a file.";
-        return;
-    }
+    uploadStatus.textContent = "Uploading " + files.length + " file(s)...";
 
-    uploadStatus.textContent = "Uploading file...";
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
 
-    const filePath = "receive-uploads/" + receiverCode + "/" + file.name;
+        const uniqueFilePath =
+            "receive-uploads/" +
+            receiverCode +
+            "/" +
+            Date.now() +
+            "-" +
+            i +
+            "-" +
+            file.name;
 
-    const uploadResult = await supabaseClient
-        .storage
-        .from("transfer-files")
-        .upload(filePath, file);
+        const uploadResult = await supabaseClient
+            .storage
+            .from("transfer-files")
+            .upload(uniqueFilePath, file);
 
-    if (uploadResult.error) {
-        uploadStatus.textContent = "Upload failed: " + uploadResult.error.message;
-        return;
+        if (uploadResult.error) {
+            uploadStatus.textContent =
+                "Upload failed for " + file.name + ": " + uploadResult.error.message;
+            return;
+        }
+
+        const insertFileResult = await supabaseClient
+            .from("transfer_session_files")
+            .insert({
+                session_code: receiverCode,
+                file_name: file.name,
+                file_path: uniqueFilePath,
+                file_size: file.size
+            });
+
+        if (insertFileResult.error) {
+            uploadStatus.textContent =
+                "Could not save file record for " +
+                file.name +
+                ": " +
+                insertFileResult.error.message;
+            return;
+        }
+
+        uploadStatus.textContent =
+            "Uploaded " + (i + 1) + " of " + files.length + " file(s)...";
     }
 
     const updateResult = await supabaseClient
         .from("transfer_sessions")
         .update({
-            status: "uploaded",
-            file_name: file.name,
-            file_path: filePath,
-            file_size: file.size
+            status: "uploaded"
         })
         .eq("code", receiverCode);
 
     if (updateResult.error) {
         uploadStatus.textContent =
-            "Could not update receive session: " + updateResult.error.message;
+            "Files uploaded, but session status update failed: " +
+            updateResult.error.message;
         return;
     }
 
     uploadStatus.textContent =
-        "Upload complete. Receiver can now download the file. File size: " +
-        formatFileSize(file.size);
+        "Upload complete. Receiver can now download " + files.length + " file(s).";
 }
 
 
 // =======================
-// Check Receive Session
+// Check Receive Session For Multiple Files
 // =======================
 
 checkReceiveSessionBtn.addEventListener("click", checkReceiveSession);
@@ -433,20 +461,20 @@ async function checkReceiveSession() {
         return;
     }
 
-    receiveStatus.textContent = "Checking for uploaded file...";
+    receiveStatus.textContent = "Checking for uploaded files...";
 
-    const result = await supabaseClient
+    const sessionResult = await supabaseClient
         .from("transfer_sessions")
         .select("*")
         .eq("code", currentReceiveSessionCode)
         .single();
 
-    if (result.error) {
+    if (sessionResult.error) {
         receiveStatus.textContent = "Could not check receive session.";
         return;
     }
 
-    const session = result.data;
+    const session = sessionResult.data;
 
     const now = new Date();
     const expiresAt = new Date(session.expires_at);
@@ -457,55 +485,90 @@ async function checkReceiveSession() {
         return;
     }
 
-    if (session.status === "waiting") {
-        receiveStatus.textContent = "Still waiting for sender to upload a file.";
+    const filesResult = await supabaseClient
+        .from("transfer_session_files")
+        .select("*")
+        .eq("session_code", currentReceiveSessionCode)
+        .order("created_at", { ascending: true });
+
+    if (filesResult.error) {
+        receiveStatus.textContent = "Could not load uploaded files.";
         return;
     }
 
-    if (session.status !== "uploaded") {
-        receiveStatus.textContent = "Unknown session status.";
+    const files = filesResult.data;
+
+    if (files.length === 0) {
+        receiveStatus.textContent = "Still waiting for sender to upload files.";
         return;
     }
 
-    currentReceiveFileData = session;
+    receiveStatus.textContent = files.length + " file(s) uploaded.";
 
-    receiveStatus.textContent = "File uploaded.";
-    receiveFileNameDisplay.textContent = "File: " + session.file_name;
-    receiveFileSizeDisplay.textContent = "Size: " + formatFileSize(session.file_size);
+    receiveDownloadSection.innerHTML = "";
+
+    files.forEach(function (file) {
+        const fileCard = document.createElement("div");
+        fileCard.className = "file-card";
+
+        fileCard.innerHTML = `
+            <p><strong>${file.file_name}</strong></p>
+            <p>Size: ${formatFileSize(file.file_size)}</p>
+            <button
+                class="downloadSessionFileBtn"
+                data-path="${file.file_path}"
+                data-name="${file.file_name}"
+            >
+                Download
+            </button>
+        `;
+
+        receiveDownloadSection.appendChild(fileCard);
+    });
+
     receiveDownloadSection.style.display = "block";
+
+    const downloadButtons = document.querySelectorAll(".downloadSessionFileBtn");
+
+    downloadButtons.forEach(function (button) {
+        button.addEventListener("click", async function () {
+            const filePath = button.dataset.path;
+            const fileName = button.dataset.name;
+
+            receiveStatus.textContent = "Preparing download...";
+
+            const signedUrlResult = await supabaseClient
+                .storage
+                .from("transfer-files")
+                .createSignedUrl(filePath, 60);
+
+            if (signedUrlResult.error) {
+                receiveStatus.textContent = "Could not create download link.";
+                return;
+            }
+
+            await downloadFileFromSignedUrl(
+                signedUrlResult.data.signedUrl,
+                fileName,
+                receiveStatus
+            );
+
+            receiveStatus.textContent = "Download started.";
+        });
+    });
 }
 
 
 // =======================
-// Download From Receive Session
+// Old Single Download Button Fallback
 // =======================
 
-receiveDownloadBtn.addEventListener("click", async function () {
-    if (currentReceiveFileData === null) {
-        receiveStatus.textContent = "No file is ready to download.";
-        return;
-    }
-
-    receiveStatus.textContent = "Preparing download...";
-
-    const signedUrlResult = await supabaseClient
-        .storage
-        .from("transfer-files")
-        .createSignedUrl(currentReceiveFileData.file_path, 60);
-
-    if (signedUrlResult.error) {
-        receiveStatus.textContent = "Could not create download link.";
-        return;
-    }
-
-    await downloadFileFromSignedUrl(
-        signedUrlResult.data.signedUrl,
-        currentReceiveFileData.file_name,
-        receiveStatus
-    );
-
-    receiveStatus.textContent = "Download started.";
-});
+if (receiveDownloadBtn) {
+    receiveDownloadBtn.addEventListener("click", function () {
+        receiveStatus.textContent =
+            "Use the individual Download buttons shown under each file.";
+    });
+}
 
 
 // =======================
@@ -671,7 +734,7 @@ function handleUploadCodeFromUrl() {
     showUploadPage();
 
     uploadStatus.textContent =
-        "Receiver code filled from QR. Choose a file to upload.";
+        "Receiver code filled from QR. Choose one or more files to upload.";
 }
 
 handleUploadCodeFromUrl();
