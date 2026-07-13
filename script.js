@@ -1,16 +1,27 @@
+// =======================
 // Supabase Setup
+// =======================
+
 const SUPABASE_URL = "https://hcipkkfyopuslgtzmifa.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_6qyKoD86F29kvGivX7QzRg_5hPgX9xD";
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+
+// =======================
 // Global State
+// =======================
+
 let currentReceiveSessionCode = "";
 let currentReceiveSessionExpiry = null;
 let expiryInterval = null;
+let currentUploadedFiles = [];
 
 
+// =======================
 // Page Elements
+// =======================
+
 const homePage = document.getElementById("homePage");
 const receivePage = document.getElementById("receivePage");
 const uploadPage = document.getElementById("uploadPage");
@@ -18,22 +29,35 @@ const uploadPage = document.getElementById("uploadPage");
 const receiveBtn = document.getElementById("receiveBtn");
 const uploadToReceiverBtn = document.getElementById("uploadToReceiverBtn");
 
+
+// =======================
 // Receive Page Elements
+// =======================
+
 const createReceiveSessionBtn = document.getElementById("createReceiveSessionBtn");
 const receiveCode = document.getElementById("receiveCode");
 const receiveExpiryDisplay = document.getElementById("receiveExpiryDisplay");
 const receiveQRCode = document.getElementById("receiveQRCode");
 const receiveStatus = document.getElementById("receiveStatus");
 const checkReceiveSessionBtn = document.getElementById("checkReceiveSessionBtn");
+const downloadAllBtn = document.getElementById("downloadAllBtn");
 const receiveDownloadSection = document.getElementById("receiveDownloadSection");
 
-// Upload Page Element
+
+// =======================
+// Upload Page Elements
+// =======================
+
 const uploadSessionCodeInput = document.getElementById("uploadSessionCodeInput");
 const uploadFileInput = document.getElementById("uploadFileInput");
 const uploadToSessionBtn = document.getElementById("uploadToSessionBtn");
 const uploadStatus = document.getElementById("uploadStatus");
 
+
+// =======================
 // Page Switching
+// =======================
+
 function hideAllPages() {
     homePage.style.display = "none";
     receivePage.style.display = "none";
@@ -54,7 +78,12 @@ function showUploadPage() {
     hideAllPages();
     uploadPage.style.display = "block";
 }
+
+
+// =======================
 // Button Events
+// =======================
+
 receiveBtn.addEventListener("click", showReceivePage);
 uploadToReceiverBtn.addEventListener("click", showUploadPage);
 
@@ -64,7 +93,11 @@ backHomeBtns.forEach(function (button) {
     button.addEventListener("click", showHomePage);
 });
 
+
+// =======================
 // Helper Functions
+// =======================
+
 function generateTransferCode() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -127,6 +160,7 @@ function startExpiryCountdown(expiryDate) {
             clearInterval(expiryInterval);
             receiveStatus.textContent = "This receive session has expired.";
             checkReceiveSessionBtn.style.display = "none";
+            downloadAllBtn.style.display = "none";
         }
     }, 60000);
 }
@@ -180,7 +214,12 @@ async function showImagePreview(file, previewElementId) {
         >
     `;
 }
+
+
+// =======================
 // Create Receive Session + QR + Expiry
+// =======================
+
 createReceiveSessionBtn.addEventListener("click", createReceiveSession);
 
 async function createReceiveSession() {
@@ -191,6 +230,8 @@ async function createReceiveSession() {
     receiveDownloadSection.innerHTML = "";
     receiveDownloadSection.style.display = "none";
     checkReceiveSessionBtn.style.display = "none";
+    downloadAllBtn.style.display = "none";
+    currentUploadedFiles = [];
 
     if (expiryInterval !== null) {
         clearInterval(expiryInterval);
@@ -199,7 +240,7 @@ async function createReceiveSession() {
     const receiveSessionCode = generateTransferCode();
 
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 1);
+    expiresAt.setHours(expiresAt.getHours() + 24);
 
     const result = await supabaseClient
         .from("transfer_sessions")
@@ -238,7 +279,12 @@ async function createReceiveSession() {
 
     checkReceiveSessionBtn.style.display = "block";
 }
+
+
+// =======================
 // Upload Multiple Files to Receiver Session
+// =======================
+
 uploadToSessionBtn.addEventListener("click", uploadToReceiverSession);
 
 async function uploadToReceiverSession() {
@@ -353,7 +399,12 @@ async function uploadToReceiverSession() {
     uploadStatus.textContent =
         "Upload complete. Receiver can now download " + files.length + " file(s).";
 }
+
+
+// =======================
 // Check Receive Session
+// =======================
+
 checkReceiveSessionBtn.addEventListener("click", checkReceiveSession);
 
 async function checkReceiveSession() {
@@ -383,6 +434,7 @@ async function checkReceiveSession() {
     if (now > expiresAt) {
         receiveStatus.textContent = "This receive session has expired.";
         checkReceiveSessionBtn.style.display = "none";
+        downloadAllBtn.style.display = "none";
         return;
     }
 
@@ -398,13 +450,16 @@ async function checkReceiveSession() {
     }
 
     const files = filesResult.data;
+    currentUploadedFiles = files;
 
     if (files.length === 0) {
         receiveStatus.textContent = "Still waiting for sender to upload files.";
+        downloadAllBtn.style.display = "none";
         return;
     }
 
     receiveStatus.textContent = files.length + " file(s) uploaded.";
+    downloadAllBtn.style.display = "block";
 
     receiveDownloadSection.innerHTML = "";
 
@@ -468,7 +523,84 @@ async function checkReceiveSession() {
         });
     });
 }
+
+
+// =======================
+// Download All Files as ZIP
+// =======================
+
+downloadAllBtn.addEventListener("click", downloadAllFiles);
+
+async function downloadAllFiles() {
+    if (currentUploadedFiles.length === 0) {
+        receiveStatus.textContent = "No files available to download.";
+        return;
+    }
+
+    receiveStatus.textContent = "Preparing ZIP file...";
+
+    const zip = new JSZip();
+
+    for (let i = 0; i < currentUploadedFiles.length; i++) {
+        const file = currentUploadedFiles[i];
+
+        receiveStatus.textContent =
+            "Adding " +
+            (i + 1) +
+            " of " +
+            currentUploadedFiles.length +
+            " file(s) to ZIP...";
+
+        const signedUrlResult = await supabaseClient
+            .storage
+            .from("transfer-files")
+            .createSignedUrl(file.file_path, 60);
+
+        if (signedUrlResult.error) {
+            receiveStatus.textContent =
+                "Could not prepare " + file.file_name + " for download.";
+            return;
+        }
+
+        const response = await fetch(signedUrlResult.data.signedUrl);
+
+        if (!response.ok) {
+            receiveStatus.textContent =
+                "Could not fetch " + file.file_name + ".";
+            return;
+        }
+
+        const blob = await response.blob();
+
+        zip.file(file.file_name, blob);
+    }
+
+    receiveStatus.textContent = "Creating ZIP file...";
+
+    const zipBlob = await zip.generateAsync({
+        type: "blob"
+    });
+
+    const objectUrl = URL.createObjectURL(zipBlob);
+
+    const temporaryLink = document.createElement("a");
+    temporaryLink.href = objectUrl;
+    temporaryLink.download = "quickdrop-files.zip";
+
+    document.body.appendChild(temporaryLink);
+    temporaryLink.click();
+    document.body.removeChild(temporaryLink);
+
+    URL.revokeObjectURL(objectUrl);
+
+    receiveStatus.textContent = "Download all started.";
+}
+
+
+// =======================
 // Handle QR URL
+// =======================
+
 function handleUploadCodeFromUrl() {
     const params = new URLSearchParams(window.location.search);
     const uploadCode = params.get("upload");
