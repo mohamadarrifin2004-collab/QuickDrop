@@ -11,16 +11,16 @@
     <!-- Home Page -->
     <section id="homePage">
         <h1>QuickDrop</h1>
-        <p>Transfer files between devices using QR codes or session codes.</p>
+        <p>Transfer files, images, text, and links between devices using QR codes.</p>
 
         <button id="receiveBtn">Receive Files</button>
-        <button id="uploadToReceiverBtn">Upload Files</button>
+        <button id="uploadToReceiverBtn">Upload Files / Text</button>
     </section>
 
 
     <!-- Receive Page -->
     <section id="receivePage" style="display: none;">
-        <h2>Receive Files</h2>
+        <h2>Receive Files / Text</h2>
 
         <p>Create a temporary receive session on this device.</p>
 
@@ -30,6 +30,7 @@
 
         <p>Session code:</p>
         <strong id="receiveCode"></strong>
+
         <p id="receiveExpiryDisplay"></p>
 
         <div id="receiveQRCode"></div>
@@ -37,15 +38,16 @@
         <p id="receiveStatus"></p>
 
         <button id="checkReceiveSessionBtn" style="display: none;">
-            Check for Files
+            Check for Files / Text
         </button>
 
         <button id="downloadAllBtn" style="display: none;">
             Download All
         </button>
 
-        <div id="receiveDownloadSection" style="display: none;"></div>\
         <div id="receiveMessageSection" style="display: none;"></div>
+
+        <div id="receiveDownloadSection" style="display: none;"></div>
 
         <button class="backHomeBtn">Back Home</button>
     </section>
@@ -53,20 +55,20 @@
 
     <!-- Upload Page -->
     <section id="uploadPage" style="display: none;">
-        <h2>Upload Files</h2>
+        <h2>Upload Files / Text</h2>
 
         <p>Enter the receiver's session code:</p>
-
         <input id="uploadSessionCodeInput" placeholder="Receiver code">
 
-        <input type="file" id="uploadFileInput" multiple>
         <p>Optional text or link:</p>
-        <textarea 
+        <textarea
             id="uploadMessageInput"
             placeholder="Paste a link, note, or text here"
             rows="4"
-            ></textarea>
+        ></textarea>
 
+        <p>Optional file upload:</p>
+        <input type="file" id="uploadFileInput" multiple>
 
         <button id="uploadToSessionBtn">
             Upload to Receiver

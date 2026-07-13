@@ -41,6 +41,7 @@ const receiveQRCode = document.getElementById("receiveQRCode");
 const receiveStatus = document.getElementById("receiveStatus");
 const checkReceiveSessionBtn = document.getElementById("checkReceiveSessionBtn");
 const downloadAllBtn = document.getElementById("downloadAllBtn");
+const receiveMessageSection = document.getElementById("receiveMessageSection");
 const receiveDownloadSection = document.getElementById("receiveDownloadSection");
 
 
@@ -49,6 +50,7 @@ const receiveDownloadSection = document.getElementById("receiveDownloadSection")
 // =======================
 
 const uploadSessionCodeInput = document.getElementById("uploadSessionCodeInput");
+const uploadMessageInput = document.getElementById("uploadMessageInput");
 const uploadFileInput = document.getElementById("uploadFileInput");
 const uploadToSessionBtn = document.getElementById("uploadToSessionBtn");
 const uploadStatus = document.getElementById("uploadStatus");
@@ -215,6 +217,19 @@ async function showImagePreview(file, previewElementId) {
     `;
 }
 
+function makeClickableText(text) {
+    const escapedText = text
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+
+    const urlPattern = /(https?:\/\/[^\s]+)/g;
+
+    return escapedText.replace(urlPattern, function (url) {
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+    });
+}
+
 
 // =======================
 // Create Receive Session + QR + Expiry
@@ -227,6 +242,8 @@ async function createReceiveSession() {
     receiveCode.textContent = "";
     receiveExpiryDisplay.textContent = "";
     receiveQRCode.innerHTML = "";
+    receiveMessageSection.innerHTML = "";
+    receiveMessageSection.style.display = "none";
     receiveDownloadSection.innerHTML = "";
     receiveDownloadSection.style.display = "none";
     checkReceiveSessionBtn.style.display = "none";
@@ -275,20 +292,21 @@ async function createReceiveSession() {
     });
 
     receiveStatus.textContent =
-        "Waiting for sender to upload file(s). Scan the QR code or enter the code manually.";
+        "Waiting for sender to upload file(s), text, or links. Scan the QR code or enter the code manually.";
 
     checkReceiveSessionBtn.style.display = "block";
 }
 
 
 // =======================
-// Upload Multiple Files to Receiver Session
+// Upload Files + Text/Links to Receiver Session
 // =======================
 
 uploadToSessionBtn.addEventListener("click", uploadToReceiverSession);
 
 async function uploadToReceiverSession() {
     const receiverCode = uploadSessionCodeInput.value.trim();
+    const messageText = uploadMessageInput.value.trim();
     const files = uploadFileInput.files;
 
     if (receiverCode === "") {
@@ -296,8 +314,8 @@ async function uploadToReceiverSession() {
         return;
     }
 
-    if (files.length === 0) {
-        uploadStatus.textContent = "Please choose at least one file.";
+    if (files.length === 0 && messageText === "") {
+        uploadStatus.textContent = "Please choose at least one file or enter a message.";
         return;
     }
 
@@ -334,52 +352,71 @@ async function uploadToReceiverSession() {
         return;
     }
 
-    uploadStatus.textContent = "Uploading " + files.length + " file(s)...";
+    if (messageText !== "") {
+        uploadStatus.textContent = "Sending text/link...";
 
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-
-        const uniqueFilePath =
-            "receive-uploads/" +
-            receiverCode +
-            "/" +
-            Date.now() +
-            "-" +
-            i +
-            "-" +
-            file.name;
-
-        const uploadResult = await supabaseClient
-            .storage
-            .from("transfer-files")
-            .upload(uniqueFilePath, file);
-
-        if (uploadResult.error) {
-            uploadStatus.textContent =
-                "Upload failed for " + file.name + ": " + uploadResult.error.message;
-            return;
-        }
-
-        const insertFileResult = await supabaseClient
-            .from("transfer_session_files")
+        const messageResult = await supabaseClient
+            .from("transfer_session_messages")
             .insert({
                 session_code: receiverCode,
-                file_name: file.name,
-                file_path: uniqueFilePath,
-                file_size: file.size
+                message_text: messageText
             });
 
-        if (insertFileResult.error) {
+        if (messageResult.error) {
             uploadStatus.textContent =
-                "Could not save file record for " +
-                file.name +
-                ": " +
-                insertFileResult.error.message;
+                "Could not send message: " + messageResult.error.message;
             return;
         }
+    }
 
-        uploadStatus.textContent =
-            "Uploaded " + (i + 1) + " of " + files.length + " file(s)...";
+    if (files.length > 0) {
+        uploadStatus.textContent = "Uploading " + files.length + " file(s)...";
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+
+            const uniqueFilePath =
+                "receive-uploads/" +
+                receiverCode +
+                "/" +
+                Date.now() +
+                "-" +
+                i +
+                "-" +
+                file.name;
+
+            const uploadResult = await supabaseClient
+                .storage
+                .from("transfer-files")
+                .upload(uniqueFilePath, file);
+
+            if (uploadResult.error) {
+                uploadStatus.textContent =
+                    "Upload failed for " + file.name + ": " + uploadResult.error.message;
+                return;
+            }
+
+            const insertFileResult = await supabaseClient
+                .from("transfer_session_files")
+                .insert({
+                    session_code: receiverCode,
+                    file_name: file.name,
+                    file_path: uniqueFilePath,
+                    file_size: file.size
+                });
+
+            if (insertFileResult.error) {
+                uploadStatus.textContent =
+                    "Could not save file record for " +
+                    file.name +
+                    ": " +
+                    insertFileResult.error.message;
+                return;
+            }
+
+            uploadStatus.textContent =
+                "Uploaded " + (i + 1) + " of " + files.length + " file(s)...";
+        }
     }
 
     const updateResult = await supabaseClient
@@ -391,13 +428,14 @@ async function uploadToReceiverSession() {
 
     if (updateResult.error) {
         uploadStatus.textContent =
-            "Files uploaded, but session status update failed: " +
-            updateResult.error.message;
+            "Sent, but session status update failed: " + updateResult.error.message;
         return;
     }
 
-    uploadStatus.textContent =
-        "Upload complete. Receiver can now download " + files.length + " file(s).";
+    uploadStatus.textContent = "Transfer complete. Receiver can now check for updates.";
+
+    uploadMessageInput.value = "";
+    uploadFileInput.value = "";
 }
 
 
@@ -413,7 +451,7 @@ async function checkReceiveSession() {
         return;
     }
 
-    receiveStatus.textContent = "Checking for uploaded files...";
+    receiveStatus.textContent = "Checking for uploaded files and messages...";
 
     const sessionResult = await supabaseClient
         .from("transfer_sessions")
@@ -438,6 +476,17 @@ async function checkReceiveSession() {
         return;
     }
 
+    const messagesResult = await supabaseClient
+        .from("transfer_session_messages")
+        .select("*")
+        .eq("session_code", currentReceiveSessionCode)
+        .order("created_at", { ascending: true });
+
+    if (messagesResult.error) {
+        receiveStatus.textContent = "Could not load messages.";
+        return;
+    }
+
     const filesResult = await supabaseClient
         .from("transfer_session_files")
         .select("*")
@@ -449,19 +498,82 @@ async function checkReceiveSession() {
         return;
     }
 
+    const messages = messagesResult.data;
     const files = filesResult.data;
+
     currentUploadedFiles = files;
 
-    if (files.length === 0) {
-        receiveStatus.textContent = "Still waiting for sender to upload files.";
+    if (messages.length === 0 && files.length === 0) {
+        receiveStatus.textContent = "Still waiting for sender to send something.";
+        receiveMessageSection.style.display = "none";
+        receiveDownloadSection.style.display = "none";
         downloadAllBtn.style.display = "none";
         return;
     }
 
-    receiveStatus.textContent = files.length + " file(s) uploaded.";
-    downloadAllBtn.style.display = "block";
+    receiveStatus.textContent =
+        messages.length + " message(s), " + files.length + " file(s) received.";
 
+    displayReceivedMessages(messages);
+    displayReceivedFiles(files);
+}
+
+
+// =======================
+// Display Received Messages
+// =======================
+
+function displayReceivedMessages(messages) {
+    receiveMessageSection.innerHTML = "";
+
+    if (messages.length === 0) {
+        receiveMessageSection.style.display = "none";
+        return;
+    }
+
+    const heading = document.createElement("h3");
+    heading.textContent = "Received Text / Links";
+    receiveMessageSection.appendChild(heading);
+
+    messages.forEach(function (message) {
+        const messageCard = document.createElement("div");
+        messageCard.className = "message-card";
+
+        const messageText = document.createElement("p");
+        messageText.innerHTML = makeClickableText(message.message_text);
+
+        const copyButton = document.createElement("button");
+        copyButton.textContent = "Copy Text";
+
+        copyButton.addEventListener("click", async function () {
+            await navigator.clipboard.writeText(message.message_text);
+            receiveStatus.textContent = "Text copied.";
+        });
+
+        messageCard.appendChild(messageText);
+        messageCard.appendChild(copyButton);
+
+        receiveMessageSection.appendChild(messageCard);
+    });
+
+    receiveMessageSection.style.display = "block";
+}
+
+
+// =======================
+// Display Received Files
+// =======================
+
+function displayReceivedFiles(files) {
     receiveDownloadSection.innerHTML = "";
+
+    if (files.length === 0) {
+        receiveDownloadSection.style.display = "none";
+        downloadAllBtn.style.display = "none";
+        return;
+    }
+
+    downloadAllBtn.style.display = "block";
 
     files.forEach(function (file) {
         const fileCard = document.createElement("div");
@@ -613,7 +725,7 @@ function handleUploadCodeFromUrl() {
     showUploadPage();
 
     uploadStatus.textContent =
-        "Receiver code filled from QR. Choose one or more files to upload.";
+        "Receiver code filled from QR. Choose files or paste text/link to send.";
 }
 
 handleUploadCodeFromUrl();
