@@ -1,13 +1,278 @@
-.image-preview {
-    max-width: 220px;
-    max-height: 220px;
-    display: block;
-    margin: 10px 0;
-    border-radius: 8px;
-    object-fit: contain;
+/*Global Reset*/
+
+* {
+    box-sizing: border-box;
 }
 
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f5f7fb;
+    color: #1f2937;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 24px;
+}
+
+
+/*Main App Container*/
+
+section {
+    width: 100%;
+    max-width: 520px;
+    background: white;
+    padding: 28px;
+    border-radius: 18px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+    margin-top: 32px;
+}
+
+
+/*Typography*/
+
+h1 {
+    margin: 0 0 8px;
+    font-size: 32px;
+    letter-spacing: -0.5px;
+}
+
+h2 {
+    margin: 0 0 12px;
+    font-size: 24px;
+}
+
+h3 {
+    margin-top: 24px;
+    margin-bottom: 12px;
+    font-size: 18px;
+}
+
+p {
+    line-height: 1.5;
+    color: #4b5563;
+}
+
+strong {
+    display: inline-block;
+    font-size: 28px;
+    letter-spacing: 2px;
+    color: #111827;
+    margin: 6px 0 12px;
+}
+
+
+/*Form Elements*/
+
+input,
+textarea {
+    width: 100%;
+    padding: 14px 15px;
+    margin: 8px 0 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    font-size: 16px;
+    font-family: inherit;
+    background: #ffffff;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+input:focus,
+textarea:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+
+/*Buttons*/
+
+button {
+    width: 100%;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 8px 0;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #2563eb;
+    color: white;
+    transition: transform 0.08s ease, background 0.15s ease;
+}
+
+button:hover {
+    background: #1d4ed8;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+.backHomeBtn {
+    background: #e5e7eb;
+    color: #111827;
+    margin-top: 20px;
+}
+
+.backHomeBtn:hover {
+    background: #d1d5db;
+}
+
+#downloadAllBtn {
+    background: #111827;
+}
+
+#downloadAllBtn:hover {
+    background: #000000;
+}
+
+
+/*QR Code*/
+
+#receiveQRCode {
+    display: flex;
+    justify-content: center;
+    margin: 18px 0;
+}
+
+#receiveQRCode img,
+#receiveQRCode canvas {
+    padding: 12px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+}
+
+
+/*Status Text*/
+
+#receiveStatus,
+#uploadStatus,
+#receiveExpiryDisplay {
+    background: #f3f4f6;
+    padding: 12px 14px;
+    border-radius: 12px;
+    color: #374151;
+    font-size: 15px;
+}
+
+#receiveExpiryDisplay {
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-weight: 600;
+}
+
+
+/*File Cards*/
+
+.file-card,
+.message-card {
+    border: 1px solid #e5e7eb;
+    background: #fafafa;
+    border-radius: 14px;
+    padding: 16px;
+    margin: 14px 0;
+}
+
+.file-card p,
+.message-card p {
+    margin: 6px 0;
+}
+
+.file-card strong {
+    font-size: 16px;
+    letter-spacing: 0;
+    margin: 0;
+    word-break: break-word;
+}
+
+
+/*Image Preview*/
+
 .image-preview-container {
-    margin-top: 8px;
-    margin-bottom: 8px;
+    margin-top: 10px;
+    margin-bottom: 12px;
+}
+
+.image-preview {
+    width: 100%;
+    max-height: 260px;
+    display: block;
+    border-radius: 12px;
+    object-fit: contain;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+}
+
+
+/*Links / Messages*/
+
+.message-card a {
+    color: #2563eb;
+    word-break: break-all;
+}
+
+.message-card p {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+
+/*Home Page Layout*/
+
+#homePage {
+    text-align: center;
+}
+
+#homePage p {
+    margin-bottom: 24px;
+}
+
+
+/*Mobile Layout*/
+
+@media (max-width: 600px) {
+    body {
+        padding: 14px;
+        align-items: flex-start;
+    }
+
+    section {
+        margin-top: 12px;
+        padding: 22px;
+        border-radius: 16px;
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.07);
+    }
+
+    h1 {
+        font-size: 28px;
+    }
+
+    h2 {
+        font-size: 22px;
+    }
+
+    button {
+        padding: 15px;
+        font-size: 16px;
+    }
+
+    input,
+    textarea {
+        font-size: 16px;
+    }
+
+    strong {
+        font-size: 24px;
+    }
+
+    .image-preview {
+        max-height: 220px;
+    }
 }
