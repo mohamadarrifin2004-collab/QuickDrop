@@ -9,6 +9,7 @@ let currentReceiveSessionCode = "";
 let currentReceiveSessionExpiry = null;
 let expiryInterval = null;
 
+
 // Page Elements
 const homePage = document.getElementById("homePage");
 const receivePage = document.getElementById("receivePage");
@@ -26,7 +27,7 @@ const receiveStatus = document.getElementById("receiveStatus");
 const checkReceiveSessionBtn = document.getElementById("checkReceiveSessionBtn");
 const receiveDownloadSection = document.getElementById("receiveDownloadSection");
 
-// Upload Page Elements
+// Upload Page Element
 const uploadSessionCodeInput = document.getElementById("uploadSessionCodeInput");
 const uploadFileInput = document.getElementById("uploadFileInput");
 const uploadToSessionBtn = document.getElementById("uploadToSessionBtn");
@@ -53,7 +54,6 @@ function showUploadPage() {
     hideAllPages();
     uploadPage.style.display = "block";
 }
-
 // Button Events
 receiveBtn.addEventListener("click", showReceivePage);
 uploadToReceiverBtn.addEventListener("click", showUploadPage);
@@ -199,7 +199,7 @@ async function createReceiveSession() {
     const receiveSessionCode = generateTransferCode();
 
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 1);
+    expiresAt.setHours(expiresAt.getHours() + 24);
 
     const result = await supabaseClient
         .from("transfer_sessions")
@@ -238,7 +238,6 @@ async function createReceiveSession() {
 
     checkReceiveSessionBtn.style.display = "block";
 }
-
 // Upload Multiple Files to Receiver Session
 uploadToSessionBtn.addEventListener("click", uploadToReceiverSession);
 
@@ -354,7 +353,6 @@ async function uploadToReceiverSession() {
     uploadStatus.textContent =
         "Upload complete. Receiver can now download " + files.length + " file(s).";
 }
-
 // Check Receive Session
 checkReceiveSessionBtn.addEventListener("click", checkReceiveSession);
 
@@ -470,9 +468,6 @@ async function checkReceiveSession() {
         });
     });
 }
-
-
-
 // Handle QR URL
 function handleUploadCodeFromUrl() {
     const params = new URLSearchParams(window.location.search);
