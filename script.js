@@ -199,7 +199,7 @@ async function createReceiveSession() {
     const receiveSessionCode = generateTransferCode();
 
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24);
+    expiresAt.setHours(expiresAt.getHours() + 1);
 
     const result = await supabaseClient
         .from("transfer_sessions")
