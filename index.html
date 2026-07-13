@@ -44,7 +44,8 @@
             Download All
         </button>
 
-        <div id="receiveDownloadSection" style="display: none;"></div>
+        <div id="receiveDownloadSection" style="display: none;"></div>\
+        <div id="receiveMessageSection" style="display: none;"></div>
 
         <button class="backHomeBtn">Back Home</button>
     </section>
@@ -59,6 +60,13 @@
         <input id="uploadSessionCodeInput" placeholder="Receiver code">
 
         <input type="file" id="uploadFileInput" multiple>
+        <p>Optional text or link:</p>
+        <textarea 
+            id="uploadMessageInput"
+            placeholder="Paste a link, note, or text here"
+            rows="4"
+            ></textarea>
+
 
         <button id="uploadToSessionBtn">
             Upload to Receiver
