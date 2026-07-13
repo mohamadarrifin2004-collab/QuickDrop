@@ -697,7 +697,7 @@ async function downloadAllFiles() {
 
     const temporaryLink = document.createElement("a");
     temporaryLink.href = objectUrl;
-    temporaryLink.download = "quickdrop-files.zip";
+    temporaryLink.download = "handoff-files.zip";
 
     document.body.appendChild(temporaryLink);
     temporaryLink.click();
