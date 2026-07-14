@@ -1,39 +1,21 @@
-// =======================
 // Supabase Setup
-// =======================
-
 const SUPABASE_URL = "https://hcipkkfyopuslgtzmifa.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_6qyKoD86F29kvGivX7QzRg_5hPgX9xD";
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-
-// =======================
 // Global State
-// =======================
-
 let currentReceiveSessionCode = "";
 let currentReceiveSessionExpiry = null;
 let expiryInterval = null;
 let currentUploadedFiles = [];
-
-
-// =======================
 // Page Elements
-// =======================
-
 const homePage = document.getElementById("homePage");
 const receivePage = document.getElementById("receivePage");
 const uploadPage = document.getElementById("uploadPage");
 
 const receiveBtn = document.getElementById("receiveBtn");
 const uploadToReceiverBtn = document.getElementById("uploadToReceiverBtn");
-
-
-// =======================
 // Receive Page Elements
-// =======================
-
 const createReceiveSessionBtn = document.getElementById("createReceiveSessionBtn");
 const receiveCode = document.getElementById("receiveCode");
 const receiveExpiryDisplay = document.getElementById("receiveExpiryDisplay");
@@ -43,23 +25,13 @@ const checkReceiveSessionBtn = document.getElementById("checkReceiveSessionBtn")
 const downloadAllBtn = document.getElementById("downloadAllBtn");
 const receiveMessageSection = document.getElementById("receiveMessageSection");
 const receiveDownloadSection = document.getElementById("receiveDownloadSection");
-
-
-// =======================
 // Upload Page Elements
-// =======================
-
 const uploadSessionCodeInput = document.getElementById("uploadSessionCodeInput");
 const uploadMessageInput = document.getElementById("uploadMessageInput");
 const uploadFileInput = document.getElementById("uploadFileInput");
 const uploadToSessionBtn = document.getElementById("uploadToSessionBtn");
 const uploadStatus = document.getElementById("uploadStatus");
-
-
-// =======================
 // Page Switching
-// =======================
-
 function hideAllPages() {
     homePage.style.display = "none";
     receivePage.style.display = "none";
@@ -80,12 +52,7 @@ function showUploadPage() {
     hideAllPages();
     uploadPage.style.display = "block";
 }
-
-
-// =======================
 // Button Events
-// =======================
-
 receiveBtn.addEventListener("click", showReceivePage);
 uploadToReceiverBtn.addEventListener("click", showUploadPage);
 
@@ -94,12 +61,7 @@ const backHomeBtns = document.querySelectorAll(".backHomeBtn");
 backHomeBtns.forEach(function (button) {
     button.addEventListener("click", showHomePage);
 });
-
-
-// =======================
 // Helper Functions
-// =======================
-
 function generateTransferCode() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -168,6 +130,19 @@ function startExpiryCountdown(expiryDate) {
 }
 
 async function downloadFileFromSignedUrl(signedUrl, fileName, statusElement) {
+    const lowerFileName = fileName.toLowerCase();
+
+    const isPdf = lowerFileName.endsWith(".pdf");
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    if (isPdf && isMobile) {
+        statusElement.textContent =
+            "Opening PDF. Use your browser's share/download button to save it.";
+
+        window.open(signedUrl, "_blank");
+        return;
+    }
+
     const response = await fetch(signedUrl);
 
     if (!response.ok) {
@@ -187,6 +162,8 @@ async function downloadFileFromSignedUrl(signedUrl, fileName, statusElement) {
     document.body.removeChild(temporaryLink);
 
     URL.revokeObjectURL(objectUrl);
+
+    statusElement.textContent = "Download started.";
 }
 
 async function showImagePreview(file, previewElementId) {
@@ -229,12 +206,7 @@ function makeClickableText(text) {
         return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
     });
 }
-
-
-// =======================
 // Create Receive Session + QR + Expiry
-// =======================
-
 createReceiveSessionBtn.addEventListener("click", createReceiveSession);
 
 async function createReceiveSession() {
@@ -257,7 +229,7 @@ async function createReceiveSession() {
     const receiveSessionCode = generateTransferCode();
 
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 1);
+    expiresAt.setHours(expiresAt.getHours() + 24);
 
     const result = await supabaseClient
         .from("transfer_sessions")
@@ -296,12 +268,7 @@ async function createReceiveSession() {
 
     checkReceiveSessionBtn.style.display = "block";
 }
-
-
-// =======================
 // Upload Files + Text/Links to Receiver Session
-// =======================
-
 uploadToSessionBtn.addEventListener("click", uploadToReceiverSession);
 
 async function uploadToReceiverSession() {
@@ -437,12 +404,7 @@ async function uploadToReceiverSession() {
     uploadMessageInput.value = "";
     uploadFileInput.value = "";
 }
-
-
-// =======================
 // Check Receive Session
-// =======================
-
 checkReceiveSessionBtn.addEventListener("click", checkReceiveSession);
 
 async function checkReceiveSession() {
@@ -517,12 +479,7 @@ async function checkReceiveSession() {
     displayReceivedMessages(messages);
     displayReceivedFiles(files);
 }
-
-
-// =======================
 // Display Received Messages
-// =======================
-
 function displayReceivedMessages(messages) {
     receiveMessageSection.innerHTML = "";
 
@@ -558,12 +515,7 @@ function displayReceivedMessages(messages) {
 
     receiveMessageSection.style.display = "block";
 }
-
-
-// =======================
 // Display Received Files
-// =======================
-
 function displayReceivedFiles(files) {
     receiveDownloadSection.innerHTML = "";
 
@@ -593,7 +545,7 @@ function displayReceivedFiles(files) {
                 data-path="${file.file_path}"
                 data-name="${file.file_name}"
             >
-                Download
+                Open / Download
             </button>
         `;
 
@@ -613,7 +565,7 @@ function displayReceivedFiles(files) {
             const filePath = button.dataset.path;
             const fileName = button.dataset.name;
 
-            receiveStatus.textContent = "Preparing download...";
+            receiveStatus.textContent = "Preparing file...";
 
             const signedUrlResult = await supabaseClient
                 .storage
@@ -630,17 +582,10 @@ function displayReceivedFiles(files) {
                 fileName,
                 receiveStatus
             );
-
-            receiveStatus.textContent = "Download started.";
         });
     });
 }
-
-
-// =======================
 // Download All Files as ZIP
-// =======================
-
 downloadAllBtn.addEventListener("click", downloadAllFiles);
 
 async function downloadAllFiles() {
@@ -707,12 +652,7 @@ async function downloadAllFiles() {
 
     receiveStatus.textContent = "Download all started.";
 }
-
-
-// =======================
 // Handle QR URL
-// =======================
-
 function handleUploadCodeFromUrl() {
     const params = new URLSearchParams(window.location.search);
     const uploadCode = params.get("upload");
